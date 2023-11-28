@@ -1,0 +1,20 @@
+.config-button {
+  min-width: 4rem;
+  padding-inline: 0.5rem;
+  height: 2rem;
+
+  border: 1px solid royalblue;
+  border-radius: 0.5rem;
+  color: royalblue;
+}
+
+.config-button:hover {
+  background-color: royalblue;
+  color: white;
+}
+
+.config-button[disabled] {
+  opacity: 0.5;
+  pointer-events: auto;
+  cursor: not-allowed;
+}

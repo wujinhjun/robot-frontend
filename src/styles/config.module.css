@@ -1,0 +1,49 @@
+.input-status:checked + label > .icon-wrapper > .icon {
+  opacity: 1;
+}
+
+.icon {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  fill: royalblue;
+  stroke-width: 4px;
+}
+
+.icon-wrapper {
+  width: 2rem;
+  height: 2rem;
+
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+}
+
+.config-button {
+  width: 4rem;
+  height: 2rem;
+
+  border: 1px solid royalblue;
+  border-radius: 0.5rem;
+  color: royalblue;
+}
+
+.config-button:hover {
+  background-color: royalblue;
+  color: white;
+}
+
+.status-bulb {
+  width: 2rem;
+  height: 2rem;
+}
+
+.status-bulb[class~='success'] {
+  --color-bulb: rgb(0, 255, 0);
+  fill: var(--color-bulb);
+  stroke: var(--color-bulb);
+}
+
+.status-bulb[class~='error'] {
+  --color-bulb: rgb(255, 0, 0);
+  fill: var(--color-bulb);
+  stroke: var(--color-bulb);
+}
