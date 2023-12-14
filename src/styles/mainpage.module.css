@@ -1,0 +1,25 @@
+.container {
+  z-index: 5;
+  background: linear-gradient(270deg, #01ca9e 0%, #fff 46.87%);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+
+  position: relative;
+}
+
+.decorate-circle {
+  position: absolute;
+  border-radius: 50%;
+  width: 100vw;
+  height: 100vw;
+  left: -25vw;
+  top: 50%;
+  transform: translate(0, -50%);
+  /* top: calc(50vw - 100vh); */
+  /* transform: translateY(-25%); */
+  border: 12px solid #edeced;
+  background: linear-gradient(90deg, #005478 9.52%, #036f9d 97%);
+  /* z-index: 1; */
+  z-index: -1;
+}
