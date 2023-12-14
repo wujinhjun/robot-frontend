@@ -1,12 +1,48 @@
+import { useState, useEffect } from 'react';
+
 import { NavLink } from 'react-router-dom';
 
 import grandmaPng from '@/assets/free-icon-grandmother-375303.png';
 
 export default function StartPage() {
+  const [isFullScreen, setFullScreen] = useState(false);
+
+  // 进入全屏
+  const enterFullscreen = () => {
+    const element = document.body;
+    console.log(element);
+
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    }
+
+    setFullScreen(true);
+  };
+
+  // 退出全屏
+  const exitFullscreen = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+    setFullScreen(false);
+  };
+
+  // 切换全屏状态
+  const toggleFullscreen = () => {
+    if (isFullScreen) {
+      exitFullscreen();
+    } else {
+      enterFullscreen();
+    }
+  };
+
   return (
     <div className="flex h-full justify-center w-full items-center relative">
       <div className="-translate-x-48 -translate-y-24">
-        <h1 className="text-white font-bold text-[6rem] mb-16">
+        <h1
+          className="text-white font-bold text-[6rem] mb-16"
+          onClick={() => toggleFullscreen()}
+        >
           认知健康小游戏
         </h1>
         <div className="flex gap-8">
