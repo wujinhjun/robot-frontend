@@ -4,28 +4,14 @@ import grandmaPng from '@/assets/free-icon-grandmother-375303.png';
 
 export default function GamePage() {
   return (
-    <div className="flex h-full justify-center w-full items-center relative">
-      <NavLink to="/" className={'absolute top-16 left-16'}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="61"
-          height="89"
-          viewBox="0 0 61 89"
-          fill="none"
-        >
-          <path
-            d="M44.3636 0L0 44.3636L44.3636 88.7273L61 72.0909L33.2727 44.3636L61 16.6364L44.3636 0Z"
-            fill="white"
-          />
-        </svg>
-      </NavLink>
-      <div className="-translate-x-48 ">
+    <>
+      <div className="row-start-1 row-end-2 col-start-1 col-end-2 z-[2] self-center justify-items-center justify-self-center">
         <h1 className="text-white font-bold text-[6rem] mb-16">
           认知健康小游戏
         </h1>
         <div className="flex gap-8 flex-wrap w-[670px] justify-center">
           <NavLink
-            to="/game"
+            to="/game/wake-up"
             className={
               'bg-[#3ED7B5] w-60 h-24 rounded-full flex items-center justify-center text-white text-[3rem]'
             }
@@ -34,7 +20,7 @@ export default function GamePage() {
           </NavLink>
 
           <NavLink
-            to="/consult"
+            to="/"
             className={
               'bg-[#CFCA3B] w-60 h-24 rounded-full flex items-center justify-center text-white text-[3rem]'
             }
@@ -43,7 +29,7 @@ export default function GamePage() {
           </NavLink>
 
           <NavLink
-            to="/consult"
+            to="/"
             className={
               'bg-[#D75A3E] w-60 h-24 rounded-full flex items-center justify-center text-white text-[3rem]'
             }
@@ -52,12 +38,11 @@ export default function GamePage() {
           </NavLink>
         </div>
       </div>
-
       <img
         src={grandmaPng}
         alt=""
-        className="w-[75vh] absolute right-0 bottom-0"
+        className=" row-start-1 row-end-2 col-start-2 col-end-3 self-end z-[3] origin-bottom-right scale-150"
       />
-    </div>
+    </>
   );
 }
