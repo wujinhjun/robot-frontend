@@ -14,7 +14,17 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3000'
+      '/api': 'http://localhost:3000',
+      '/hw-api': {
+        target: 'https://iam.cn-north-4.myhuaweicloud.com/',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/hw-api/, '')
+      },
+      '/hw-tts-api': {
+        target: 'https://sis-ext.cn-east-3.myhuaweicloud.com/v1/',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/hw-tts-api/, '')
+      }
     }
   }
 });
