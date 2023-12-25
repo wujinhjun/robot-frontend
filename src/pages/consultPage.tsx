@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 
 import doctorPng from '@/assets/doctor.png';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import io from 'socket.io-client';
 
@@ -11,90 +11,174 @@ const userSecret = import.meta.env.VITE_HW_USER_PASSWORD;
 const username = import.meta.env.VITE_HW_USERNAME;
 const domainName = import.meta.env.VITE_HW_DOMAIN_NAME;
 const projectName = import.meta.env.VITE_HW_PROJECT_NAME;
+const API_KEY = import.meta.env.VITE_OPEN_AI_API_KEY;
+
+const prefix = 'data:audio/wav;base64,';
+
+import {
+  readBlobToArrayBuffer,
+  readBlobToFloat32
+} from '@/utils/readBlobToArrayBuffer';
+import base64ToBlob from '@/utils/base64ToBlob';
 
 export default function ConsultPage() {
   const [isConsultProcessing, setIsConsultProcessing] = useState(false);
 
   const [isAudioRecording, setIsAudioRecording] = useState(false);
 
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const audioBlobRef = useRef<Blob | null>(null);
 
+  // audio 的 ref
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  // 录音机的ref
+  const audioRecorderRef = useRef<MediaStream | null>(null);
 
+  // 音频是否正在播放
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
+  // hw的token
   const [hwToken, setHwToken] = useState('');
 
-  const handleConsultSubmit = () => {
-    setIsConsultProcessing(true);
+  // 语音转文字的结果
+  const speechToTextResultRef = useRef('');
+  // 生成的文字内容
+  const generatedTextRef = useRef('');
+
+  const handleConsultSubmitToText = async () => {
+    if (audioBlobRef.current === null) {
+      return;
+    }
+
+    // setIsConsultProcessing(true);
 
     const socket = io('ws://localhost:3000');
-    console.log(audioBlobRef.current);
 
-    socket.emit(
-      'chat audio',
-      JSON.stringify({
-        token: hwToken,
-        projectId: projectId,
-        endpoint: endpoint,
-        data: audioBlobRef.current
-      })
-    );
+    const data = await readBlobToArrayBuffer(audioBlobRef.current);
+
+    socket.emit('chat audio', {
+      token: hwToken,
+      projectId: projectId,
+      endpoint: endpoint,
+      data: data
+    });
 
     socket.on('chat audio', (msg) => {
-      console.log(msg);
+      switch (msg.type) {
+        case 'RESULT':
+          speechToTextResultRef.current = msg.data;
+          toast.success('语音转文字成功');
+          handleSubmitTextToChatGPT();
+          break;
+        case 'ERROR':
+          toast.error(msg.data);
+          break;
+        default:
+          console.log(msg);
+      }
     });
+  };
+
+  const handleSubmitTextToChatGPT = async () => {
+    const text = speechToTextResultRef.current;
+    fetch('https://api.openai-proxy.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        // model: 'gpt-4-0314',
+        messages: [{ role: 'user', content: text }]
+      })
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        const reply = res.choices[0].message.content;
+        generatedTextRef.current = reply;
+        toast.success('生成文字成功');
+        return reply;
+      })
+      .then((reply) => {
+        handleSubmitTextToGenerateAudio(reply);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
+  const handleSubmitTextToGenerateAudio = (text: string) => {
+    const url = `/hw-tts-api/${projectId}/tts`;
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': hwToken
+      },
+      body: JSON.stringify({
+        text,
+        config: {
+          audio_format: 'mp3',
+          sample_rate: '16000',
+          property: 'chinese_xiaoyan_common',
+          speed: 10,
+          pitch: 10,
+          volume: 60
+        }
+      })
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        const audioBlob = base64ToBlob(res.result.data, 'mp3');
+        setIsConsultProcessing(false);
+
+        audioRef.current!.src = window.URL.createObjectURL(audioBlob);
+        audioRef.current!.play();
+      })
+      .catch((err) => {
+        console.log(err);
+      });
   };
 
   const startAudioRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      const peerConnection = new RTCPeerConnection();
-      stream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, stream);
+      audioRecorderRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: true
       });
 
-      const channel = peerConnection.createDataChannel('audioDataChannel');
+      const ac = new AudioContext({ sampleRate: 16000 });
 
-      channel.onopen = () => {
-        console.log('channel open');
+      const source = ac.createMediaStreamSource(audioRecorderRef.current);
+      const dest = ac.createMediaStreamDestination();
+
+      source.connect(dest);
+
+      const mediaRecorder = new MediaRecorder(dest.stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
       };
 
-      channel.onmessage = (event) => {
-        console.log(event);
+      mediaRecorder.onstop = () => {
+        const recordBlob = new Blob(chunks, { type: 'audio/wav' });
+        audioBlobRef.current = recordBlob;
+
+        if (audioRef.current) {
+          audioRef.current.src = URL.createObjectURL(recordBlob);
+          audioRef.current.controls = true;
+        }
+        handleConsultSubmitToText();
       };
 
-      channel.onclose = () => {
-        console.log('channel close');
-      };
-      //   const mediaRecorder = new MediaRecorder(stream);
-      //   const chunks: Blob[] = [];
+      mediaRecorderRef.current = mediaRecorder;
+      setIsAudioRecording(true);
+      setIsConsultProcessing(true);
 
-      //   mediaRecorder.ondataavailable = (event) => {
-      //     if (event.data.size > 0) {
-      //       console.log(event);
-
-      //       chunks.push(event.data);
-      //     }
-      //   };
-
-      //   mediaRecorder.onstop = () => {
-      //     const recordBlob = new Blob(chunks, { type: 'audio/wav' });
-      //     audioBlobRef.current = recordBlob;
-      //     setAudioBlob(recordBlob);
-      //     if (audioRef.current) {
-      //       audioRef.current.src = URL.createObjectURL(recordBlob);
-      //       audioRef.current.controls = true;
-      //     }
-      //     console.log(recordBlob);
-
-      //     handleConsultSubmit();
-      //   };
-
-      //   mediaRecorderRef.current = mediaRecorder;
-      //   setIsAudioRecording(true);
-      //   mediaRecorder.start();
+      mediaRecorder.start();
     } catch (err) {
       console.error(err);
     }
@@ -109,17 +193,38 @@ export default function ConsultPage() {
       setIsAudioRecording(false);
     }
 
-    console.log(audioBlobRef.current);
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.getTracks().forEach((track) => track.stop());
+    }
   };
 
   const isObjectEmpty = (obj: Record<string, unknown>) => {
     return Reflect.ownKeys(obj).length === 0;
   };
 
+  const handleListenAudioTimeUpdate = useCallback(() => {
+    const audioEle = audioRef.current;
+
+    if (!audioEle) {
+      return;
+    }
+
+    if (audioEle.src.length === 0) {
+      return;
+    }
+
+    const duration = audioEle.duration;
+    const currentTime = audioEle.currentTime;
+
+    if (currentTime >= duration) {
+      setIsAudioPlaying(false);
+    } else if (duration > 0 && !isAudioPlaying) {
+      setIsAudioPlaying(true);
+    }
+  }, []);
+
   useEffect(() => {
     const token = JSON.parse(localStorage.getItem('hw-rasr-token') || '{}');
-    // const originToken = localStorage.getItem('hw-rasr-token') || '{}';
-    // const token = JSON.parse(originToken);
 
     const expiresAt = token.expiresAt;
     const now = Date.now();
@@ -175,26 +280,26 @@ export default function ConsultPage() {
           console.error(err);
         });
     }
+
+    audioRef.current &&
+      audioRef.current.addEventListener(
+        'timeupdate',
+        handleListenAudioTimeUpdate
+      );
+
+    // 在组件卸载时移除事件监听器
+    return () => {
+      audioRef.current &&
+        audioRef.current.removeEventListener(
+          'timeupdate',
+          handleListenAudioTimeUpdate
+        );
+    };
   }, []);
 
   return (
     <>
       <div className="row-start-1 row-end-2 col-start-1 col-end-2 z-[2] self-center justify-items-center justify-self-center">
-        <NavLink to="/" className={' '}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="61"
-            height="89"
-            viewBox="0 0 61 89"
-            fill="none"
-          >
-            <path
-              d="M44.3636 0L0 44.3636L44.3636 88.7273L61 72.0909L33.2727 44.3636L61 16.6364L44.3636 0Z"
-              fill="white"
-            />
-          </svg>
-        </NavLink>
-
         <div className="mt-20 h-fit flex flex-col justify-center items-center">
           <h1 className="text-white font-bold text-[4rem] h-fit pb-24">
             您好！想咨询什么问题呢？
@@ -208,7 +313,6 @@ export default function ConsultPage() {
               } else {
                 startAudioRecording();
               }
-              //   handleConsultSubmit();
             }}
           >
             <svg
@@ -233,6 +337,7 @@ export default function ConsultPage() {
               viewBox="0 0 102 137"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              className={isAudioPlaying ? 'opacity-50' : ''}
             >
               <g id="&#240;&#159;&#166;&#134; icon &#34;microphone&#34;">
                 <path
@@ -247,7 +352,7 @@ export default function ConsultPage() {
           <audio
             ref={audioRef}
             controls={false}
-            className="mt-8"
+            className="mt-8 hidden"
             // style={{ display: 'none' }}
           />
         </div>
