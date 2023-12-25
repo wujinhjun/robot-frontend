@@ -37,14 +37,15 @@ export default function StartPage() {
   };
 
   return (
-    <div className="flex h-full justify-center w-full items-center relative">
-      <div className="-translate-x-48 -translate-y-24">
+    <>
+      <div className="row-start-1 row-end-2 col-start-1 col-end-2 z-[2] self-center justify-items-center justify-self-center">
         <h1
           className="text-white font-bold text-[6rem] mb-16"
           onClick={() => toggleFullscreen()}
         >
           认知健康小游戏
         </h1>
+
         <div className="flex gap-8">
           <NavLink
             to="/game"
@@ -65,12 +66,11 @@ export default function StartPage() {
           </NavLink>
         </div>
       </div>
-
       <img
         src={grandmaPng}
         alt=""
-        className="w-[75vh] absolute right-0 bottom-0"
+        className=" row-start-1 row-end-2 col-start-2 col-end-3 self-end z-[3] origin-bottom-right scale-150"
       />
-    </div>
+    </>
   );
 }
